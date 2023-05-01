@@ -33,6 +33,8 @@
                        android:value="true" />
             <meta-data android:name="com.android.settings.order"
                        android:value="-10" />
+            <meta-data android:name="com.android.settings.profile"
+                       android:value="primary_profile_only" />
         </activity>
 
         <receiver
