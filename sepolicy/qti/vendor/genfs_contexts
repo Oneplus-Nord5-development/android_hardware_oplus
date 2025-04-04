@@ -24,6 +24,7 @@ genfscon proc /boost_pool/camera_pages           u:object_r:vendor_proc_camera:s
 genfscon proc /boost_pool/camera_pid             u:object_r:vendor_proc_camera:s0
 genfscon proc /oplus_cl/cl_aware_camera          u:object_r:vendor_proc_camera:s0
 genfscon proc /oplus_cl/cl_aware_camera_usage    u:object_r:vendor_proc_camera:s0
+genfscon proc /qcom_flash                        u:object_r:vendor_proc_camera:s0
 
 # Display
 genfscon proc /devinfo/lcd              u:object_r:vendor_proc_display:s0
