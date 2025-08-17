@@ -4,6 +4,7 @@
 
 | Namespace | Variable | Description | Default |
 | --------- | -------- | ----------- | ------- |
+| OPLUS_LINEAGE_LIVEDISPLAY_HAL | ENABLE_AB | Enable AdaptiveBacklight feature | false |
 | OPLUS_LINEAGE_LIVEDISPLAY_HAL | ENABLE_AF | Enable AntiFlicker feature | false |
 | OPLUS_LINEAGE_LIVEDISPLAY_HAL | ENABLE_DM | Enable DisplayModes feature | false |
 | OPLUS_LINEAGE_LIVEDISPLAY_HAL | ENABLE_PA | Enable PictureAdjustment feature | true |
