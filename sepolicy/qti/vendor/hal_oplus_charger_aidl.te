@@ -15,6 +15,7 @@ allow hal_oplus_charger_aidl self:netlink_kobject_uevent_socket create_socket_pe
 allow hal_oplus_charger_aidl block_device:dir search;
 allow hal_oplus_charger_aidl vendor_reserve_partition:blk_file rw_file_perms;
 
+rw_dir_file(hal_oplus_charger_aidl, vendor_sysfs_battery_supply)
 rw_dir_file(hal_oplus_charger_aidl, vendor_sysfs_charger)
 rw_dir_file(hal_oplus_charger_aidl, vendor_sysfs_usb_supply)
 rw_dir_file(hal_oplus_charger_aidl, vendor_proc_charger)
