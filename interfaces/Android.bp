@@ -5,6 +5,7 @@ hidl_package_root {
 
 aidl_interface {
     name: "vendor.oplus.hardware.biometrics.fingerprintpay",
+    system_ext_specific: true,
     odm_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/biometrics/fingerprintpay/*.aidl"],
@@ -29,6 +30,7 @@ aidl_interface {
 
 aidl_interface {
     name: "vendor.oplus.hardware.charger",
+    system_ext_specific: true,
     odm_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/charger/*.aidl"],
@@ -77,6 +79,7 @@ aidl_interface {
 
 aidl_interface {
     name: "vendor.oplus.hardware.commondcs",
+    system_ext_specific: true,
     vendor_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/commondcs/*.aidl"],
@@ -101,6 +104,7 @@ aidl_interface {
 
 aidl_interface {
     name: "vendor.oplus.hardware.esim",
+    system_ext_specific: true,
     odm_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/esim/*.aidl"],
@@ -125,6 +129,7 @@ aidl_interface {
 
 aidl_interface {
     name: "vendor.oplus.hardware.osense.client",
+    system_ext_specific: true,
     vendor_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/osense/client/*.aidl"],
@@ -149,6 +154,7 @@ aidl_interface {
 
 aidl_interface {
     name: "vendor.oplus.hardware.performance",
+    system_ext_specific: true,
     vendor_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/performance/*.aidl"],
@@ -173,6 +179,7 @@ aidl_interface {
 
 aidl_interface {
     name: "vendor.oplus.hardware.radio",
+    system_ext_specific: true,
     vendor_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/radio/*.aidl"],
@@ -201,6 +208,7 @@ aidl_interface {
 
 aidl_interface {
     name: "vendor.oplus.hardware.touch",
+    system_ext_specific: true,
     vendor_available: true,
     local_include_dir: "aidl",
     srcs: ["aidl/vendor/oplus/hardware/touch/*.aidl"],
