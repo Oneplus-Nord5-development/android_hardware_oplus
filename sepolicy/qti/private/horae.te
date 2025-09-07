@@ -15,5 +15,3 @@ allow horae horae_service:service_manager find;
 allow horae osense_service:service_manager find;
 allow horae surfaceflinger_service:service_manager find;
 allow horae thermal_service:service_manager find;
-
-rw_dir_file(horae, proc_horae)
