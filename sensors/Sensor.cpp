@@ -285,9 +285,11 @@ void UdfpsSensor::setOperationMode(OperationMode mode) {
 
 void UdfpsSensor::run() {
     std::unique_lock<std::mutex> runLock(mRunMutex);
+    bool reportEvent = false;
 
     while (!mStopThread) {
         if (!mIsEnabled || mMode == OperationMode::DATA_INJECTION) {
+            reportEvent = false;
             mWaitCV.wait(runLock, [&] {
                 return ((mIsEnabled && mMode == OperationMode::NORMAL) || mStopThread);
             });
@@ -303,13 +305,16 @@ void UdfpsSensor::run() {
                 continue;
             }
 
-            if (mPolls[1].revents == mPolls[1].events && readFpState(mPollFd, mScreenX, mScreenY)) {
+            if (mPolls[1].revents == mPolls[1].events && readFpState(mPollFd, mScreenX, mScreenY) &&
+                reportEvent) {
                 mIsEnabled = false;
                 mCallback->postEvents(readEvents(), isWakeUpSensor());
             } else if (mPolls[0].revents == mPolls[0].events) {
                 char buf;
                 read(mWaitPipeFd[0], &buf, sizeof(buf));
             }
+
+            reportEvent = true;
         }
     }
 }
