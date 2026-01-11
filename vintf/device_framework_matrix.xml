@@ -263,6 +263,14 @@
         </interface>
     </hal>
     <hal format="aidl" optional="true">
+        <name>vendor.oplus.hardware.secure_element</name>
+        <version>1</version>
+        <interface>
+            <name>ISecureElement</name>
+            <instance>default</instance>
+        </interface>
+    </hal>
+    <hal format="aidl" optional="true">
         <name>vendor.oplus.hardware.sendextcamcmd</name>
         <version>1-2</version>
         <interface>
