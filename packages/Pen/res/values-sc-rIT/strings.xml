@@ -4,6 +4,6 @@
     SPDX-License-Identifier: Apache-2.0
 -->
 <resources>
-    <string name="pen_attached">Перо доступно</string>
-    <string name="tap_to_connect">Нажмите, чтобы подключить</string>
+    <string name="pen_attached">Pinna alligongiada</string>
+    <string name="tap_to_connect">Toca pro connètere</string>
 </resources>

@@ -4,5 +4,6 @@
     SPDX-License-Identifier: Apache-2.0
 -->
 <resources>
+    <string name="pen_attached">எழுத்தாணி இணைக்கப்பட்டது</string>
     <string name="tap_to_connect">இணைக்கத் தட்டுக</string>
 </resources>
