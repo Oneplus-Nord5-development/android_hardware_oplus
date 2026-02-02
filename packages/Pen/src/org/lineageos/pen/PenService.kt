@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 The LineageOS Project
+ * SPDX-FileCopyrightText: 2025-2026 The LineageOS Project
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -33,6 +33,8 @@ class PenService : Service() {
     private val penSupportedRefreshRate by lazy {
         getString(R.string.config_penSupportedRefreshRate)
     }
+
+    private var wasPenConnected = false
 
     private val handler by lazy { Handler(mainLooper) }
 
@@ -175,9 +177,16 @@ class PenService : Service() {
             } != null
         val peakRefreshRate = Settings.System.getString(contentResolver, PEAK_REFRESH_RATE)
 
+        if (isPenConnected) {
+            wasPenConnected = true
+        }
+
         if (isPenConnected && peakRefreshRate == "Infinity") {
             Settings.System.putString(contentResolver, PEAK_REFRESH_RATE, penSupportedRefreshRate)
-        } else if (!isPenConnected && peakRefreshRate == penSupportedRefreshRate) {
+        } else if (
+            wasPenConnected && !isPenConnected && peakRefreshRate == penSupportedRefreshRate
+        ) {
+            wasPenConnected = false
             Settings.System.putString(contentResolver, PEAK_REFRESH_RATE, "Infinity")
         }
     }
