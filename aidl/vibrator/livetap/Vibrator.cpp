@@ -8,6 +8,7 @@
 #include <cutils/properties.h>
 #include <inttypes.h>
 #include <log/log.h>
+#include <stdio.h>
 #include <unistd.h>
 
 #include <thread>
@@ -33,14 +34,66 @@ Vibrator::Vibrator() {
     si_vibra_setting_f0(LIVETAP_DEFAULT_F0);
     si_vibra_set_drc_mode(1);
     si_vibra_update_parameter();
+    wave_vib_lib_init();
     si_vibra_looper_start();
 
     ALOGI("LiveTap init success: %u\n", deviceType);
 }
 
+bool Vibrator::isSoftStyle() {
+    int32_t prop = property_get_int32("persist.vendor.vibrator.touch_style", -1);
+    if (prop >= 0) {
+        return prop == 1;
+    }
+    int32_t sysProp = property_get_int32("persist.sys.vibrator.touch_style", -1);
+    if (sysProp >= 0) {
+        return sysProp == 1;
+    }
+    FILE* fp = fopen("/proc/vibrator/touch_style", "r");
+    if (fp) {
+        int val = 0;
+        if (fscanf(fp, "%d", &val) == 1) {
+            fclose(fp);
+            return val == 1;
+        }
+        fclose(fp);
+    }
+    return false;
+}
+
+int32_t Vibrator::playPrebaked(uint32_t effectId, float scale, uint32_t fallbackDuration,
+                               uint8_t fallbackAmp) {
+    if (isSoftStyle()) {
+        uint8_t amp = static_cast<uint8_t>(fallbackAmp * scale * 0.75f);
+        if (amp < 1) amp = 1;
+        mAmplitudeSet = false;
+        si_vibra_setAmplitude(amp);
+        int32_t ret = si_vibra_looper_on(fallbackDuration);
+        return (ret > 0) ? ret : fallbackDuration;
+    }
+
+    int32_t strength = static_cast<int32_t>(scale * 100.0f);
+    if (strength < 1) strength = 1;
+    if (strength > 100) strength = 100;
+
+    int32_t ret = si_vibra_looper_prebaked_effect(effectId, strength);
+    if (ret > 0) {
+        return ret;
+    }
+
+    uint8_t amp = static_cast<uint8_t>(fallbackAmp * scale);
+    if (amp < 1) amp = 1;
+    mAmplitudeSet = false;
+    si_vibra_setAmplitude(amp);
+    ret = si_vibra_looper_on(fallbackDuration);
+    return (ret > 0) ? ret : fallbackDuration;
+}
+
 ndk::ScopedAStatus Vibrator::getCapabilities(int32_t* _aidl_return) {
-    *_aidl_return = IVibrator::CAP_ON_CALLBACK | IVibrator::CAP_PERFORM_CALLBACK |
-                    IVibrator::CAP_AMPLITUDE_CONTROL | IVibrator::CAP_COMPOSE_EFFECTS;
+    *_aidl_return = static_cast<int32_t>(IVibrator::CAP_ON_CALLBACK) |
+                    static_cast<int32_t>(IVibrator::CAP_PERFORM_CALLBACK) |
+                    static_cast<int32_t>(IVibrator::CAP_AMPLITUDE_CONTROL) |
+                    static_cast<int32_t>(IVibrator::CAP_COMPOSE_EFFECTS);
 
     return ndk::ScopedAStatus::ok();
 }
@@ -108,74 +161,44 @@ ndk::ScopedAStatus Vibrator::perform(Effect effect, EffectStrength es,
             return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
     }
 
-    uint32_t duration;
-    uint8_t baseAmplitude;
-
+    int32_t duration;
     switch (effect) {
         case Effect::TEXTURE_TICK:
-            duration = 4;
-            baseAmplitude = 32;
+            duration = playPrebaked(0, strengthFactor * 0.75f, 4, 32);
             break;
         case Effect::TICK:
-            duration = 5;
-            baseAmplitude = 40;
+            duration = playPrebaked(0, strengthFactor, 5, 40);
             break;
         case Effect::POP:
-            duration = 8;
-            baseAmplitude = 60;
+            duration = playPrebaked(1, strengthFactor * 0.85f, 8, 60);
             break;
         case Effect::CLICK:
-            duration = 7;
-            baseAmplitude = 54;
+            duration = playPrebaked(1, strengthFactor, 7, 54);
             break;
         case Effect::THUD:
-            duration = 10;
-            baseAmplitude = 65;
+            duration = playPrebaked(2, strengthFactor * 0.90f, 10, 65);
             break;
         case Effect::HEAVY_CLICK:
-            duration = 12;
-            baseAmplitude = 85;
+            duration = playPrebaked(2, strengthFactor, 12, 85);
             break;
         case Effect::DOUBLE_CLICK:
-            duration = 25;
-            baseAmplitude = 54;
+            playPrebaked(1, strengthFactor, 7, 54);
+            usleep(15 * 1000);
+            duration = playPrebaked(1, strengthFactor, 7, 54) + 15;
             break;
         default:
-            duration = 7;
-            baseAmplitude = 54;
+            duration = playPrebaked(1, strengthFactor, 7, 54);
             break;
-    }
-
-    uint8_t finalAmp = static_cast<uint8_t>(baseAmplitude * strengthFactor);
-    if (finalAmp < 1) finalAmp = 1;
-
-    mAmplitudeSet = false;
-    si_vibra_setAmplitude(finalAmp);
-
-    int32_t ret;
-    if (effect == Effect::DOUBLE_CLICK) {
-        si_vibra_looper_on(5);
-        usleep(15 * 1000);
-        si_vibra_setAmplitude(finalAmp);
-        si_vibra_looper_on(5);
-        ret = duration;
-    } else {
-        ret = si_vibra_looper_on(duration);
-        if (ret < 0) {
-            ALOGE("LiveTap looper on failed: %d\n", ret);
-            return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_SERVICE_SPECIFIC));
-        }
-        ret = duration;
     }
 
     if (callback != nullptr) {
         std::thread([=] {
-            usleep(ret * 1000);
+            usleep(duration * 1000);
             callback->onComplete();
         }).detach();
     }
 
-    *_aidl_return = ret;
+    *_aidl_return = duration;
 
     return ndk::ScopedAStatus::ok();
 }
@@ -206,7 +229,7 @@ ndk::ScopedAStatus Vibrator::setAmplitude(float amplitude) {
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus Vibrator::setExternalControl(bool enabled __unused) {
+ndk::ScopedAStatus Vibrator::setExternalControl(bool /* enabled */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
@@ -232,6 +255,9 @@ ndk::ScopedAStatus Vibrator::getSupportedPrimitives(
         CompositePrimitive::NOOP,
         CompositePrimitive::CLICK,
         CompositePrimitive::THUD,
+        CompositePrimitive::SPIN,
+        CompositePrimitive::QUICK_RISE,
+        CompositePrimitive::SLOW_RISE,
         CompositePrimitive::QUICK_FALL,
         CompositePrimitive::LIGHT_TICK,
         CompositePrimitive::LOW_TICK,
@@ -249,10 +275,13 @@ ndk::ScopedAStatus Vibrator::getPrimitiveDuration(CompositePrimitive primitive,
             *durationMs = 0;
             break;
         case CompositePrimitive::CLICK:
-            *durationMs = 7;
+        case CompositePrimitive::QUICK_RISE:
+            *durationMs = 10;
             break;
         case CompositePrimitive::THUD:
-            *durationMs = 10;
+        case CompositePrimitive::SLOW_RISE:
+        case CompositePrimitive::SPIN:
+            *durationMs = 15;
             break;
         case CompositePrimitive::LIGHT_TICK:
         case CompositePrimitive::LOW_TICK:
@@ -283,10 +312,13 @@ ndk::ScopedAStatus Vibrator::compose(const std::vector<CompositeEffect>& composi
                 primDuration = 0;
                 break;
             case CompositePrimitive::CLICK:
-                primDuration = 7;
+            case CompositePrimitive::QUICK_RISE:
+                primDuration = 10;
                 break;
             case CompositePrimitive::THUD:
-                primDuration = 10;
+            case CompositePrimitive::SLOW_RISE:
+            case CompositePrimitive::SPIN:
+                primDuration = 15;
                 break;
             case CompositePrimitive::LIGHT_TICK:
             case CompositePrimitive::LOW_TICK:
@@ -308,31 +340,24 @@ ndk::ScopedAStatus Vibrator::compose(const std::vector<CompositeEffect>& composi
             continue;
         }
 
-        uint8_t amp = 0;
-        uint32_t duration = 0;
         switch (effect.primitive) {
             case CompositePrimitive::CLICK:
-                duration = 7;
-                amp = static_cast<uint8_t>(54 * effect.scale);
+            case CompositePrimitive::QUICK_RISE:
+                playPrebaked(1, effect.scale, 7, 54);
                 break;
             case CompositePrimitive::THUD:
-                duration = 10;
-                amp = static_cast<uint8_t>(65 * effect.scale);
+            case CompositePrimitive::SLOW_RISE:
+            case CompositePrimitive::SPIN:
+                playPrebaked(2, effect.scale, 10, 65);
                 break;
             case CompositePrimitive::LIGHT_TICK:
             case CompositePrimitive::LOW_TICK:
             case CompositePrimitive::QUICK_FALL:
-                duration = 4;
-                amp = static_cast<uint8_t>(32 * effect.scale);
+                playPrebaked(0, effect.scale, 4, 32);
                 break;
             default:
                 break;
         }
-        if (amp < 1) amp = 1;
-
-        mAmplitudeSet = false;
-        si_vibra_setAmplitude(amp);
-        si_vibra_looper_on(duration);
     }
 
     if (callback != nullptr) {
@@ -346,16 +371,16 @@ ndk::ScopedAStatus Vibrator::compose(const std::vector<CompositeEffect>& composi
 }
 
 ndk::ScopedAStatus Vibrator::getSupportedAlwaysOnEffects(
-        std::vector<Effect>* _aidl_return __unused) {
+        std::vector<Effect>* /* _aidl_return */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::alwaysOnEnable(int32_t id __unused, Effect effect __unused,
-                                            EffectStrength strength __unused) {
+ndk::ScopedAStatus Vibrator::alwaysOnEnable(int32_t /* id */, Effect /* effect */,
+                                            EffectStrength /* strength */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::alwaysOnDisable(int32_t id __unused) {
+ndk::ScopedAStatus Vibrator::alwaysOnDisable(int32_t /* id */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
@@ -375,33 +400,32 @@ ndk::ScopedAStatus Vibrator::getQFactor(float* qFactor) {
     return ndk::ScopedAStatus::ok();
 }
 
-ndk::ScopedAStatus Vibrator::getFrequencyResolution(float* freqResolutionHz __unused) {
+ndk::ScopedAStatus Vibrator::getFrequencyResolution(float* /* freqResolutionHz */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::getFrequencyMinimum(float* freqMinimumHz __unused) {
+ndk::ScopedAStatus Vibrator::getFrequencyMinimum(float* /* freqMinimumHz */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::getBandwidthAmplitudeMap(std::vector<float>* _aidl_return __unused) {
+ndk::ScopedAStatus Vibrator::getBandwidthAmplitudeMap(std::vector<float>* /* _aidl_return */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::getPwlePrimitiveDurationMax(int32_t* durationMs __unused) {
+ndk::ScopedAStatus Vibrator::getPwlePrimitiveDurationMax(int32_t* /* durationMs */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::getPwleCompositionSizeMax(int32_t* maxSize __unused) {
+ndk::ScopedAStatus Vibrator::getPwleCompositionSizeMax(int32_t* /* maxSize */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::getSupportedBraking(std::vector<Braking>* supported __unused) {
+ndk::ScopedAStatus Vibrator::getSupportedBraking(std::vector<Braking>* /* supported */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 
-ndk::ScopedAStatus Vibrator::composePwle(const std::vector<PrimitivePwle>& composite __unused,
-                                         const std::shared_ptr<IVibratorCallback>& callback
-                                                 __unused) {
+ndk::ScopedAStatus Vibrator::composePwle(const std::vector<PrimitivePwle>& /* composite */,
+                                         const std::shared_ptr<IVibratorCallback>& /* callback */) {
     return ndk::ScopedAStatus(AStatus_fromExceptionCode(EX_UNSUPPORTED_OPERATION));
 }
 

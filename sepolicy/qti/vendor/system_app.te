@@ -12,6 +12,10 @@ rw_dir_file(system_app, vendor_sysfs_fastcharge)
 
 # Vibrator
 rw_dir_file(system_app, sysfs_vibrator)
+rw_dir_file(system_app, vendor_proc_vibrator)
+set_prop(system_app, system_oplus_vibrator_prop)
+
+
 
 # Zram
 r_dir_file(system_app, sysfs_zram)

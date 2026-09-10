@@ -48,6 +48,10 @@ class Vibrator : public BnVibrator {
                                    const std::shared_ptr<IVibratorCallback>& callback) override;
 
   private:
+    bool isSoftStyle();
+    int32_t playPrebaked(uint32_t effectId, float scale, uint32_t fallbackDuration,
+                         uint8_t fallbackAmp);
+
     bool mAmplitudeSet = false;
 };
 
